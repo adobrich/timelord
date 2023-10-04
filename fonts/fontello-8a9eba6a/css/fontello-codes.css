@@ -1,0 +1,14 @@
+
+.icon-pencil:before { content: '\e800'; } /* '' */
+.icon-stopwatch:before { content: '\e801'; } /* '' */
+.icon-clock-1:before { content: '\e808'; } /* '' */
+.icon-left:before { content: '\e809'; } /* '' */
+.icon-right:before { content: '\e80a'; } /* '' */
+.icon-cog-1:before { content: '\e80b'; } /* '' */
+.icon-right-open-1:before { content: '\f006'; } /* '' */
+.icon-left-open-1:before { content: '\f007'; } /* '' */
+.icon-play-1:before { content: '\f00f'; } /* '' */
+.icon-stop-1:before { content: '\f080'; } /* '' */
+.icon-export:before { content: '\f081'; } /* '' */
+.icon-trash:before { content: '\f083'; } /* '' */
+.icon-calendar-1:before { content: '\f4c5'; } /* '' */
