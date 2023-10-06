@@ -1,5 +1,3 @@
-use std::hint::unreachable_unchecked;
-
 use iced::alignment::{self, Alignment};
 use iced::font::{self, Font};
 use iced::keyboard;
@@ -86,6 +84,7 @@ enum Message {
     Loaded(Result<SavedState, LoadError>),
     FontLoaded(Result<(), font::Error>),
     InputChanged(String),
+    CreateTask,
 }
 
 impl Application for Timelord {
@@ -98,6 +97,7 @@ impl Application for Timelord {
         (
             Timelord::Loading,
             Command::batch(vec![
+                // icons: https://github.com/stephenhutchings/typicons.font
                 font::load(include_bytes!("../fonts/typicons.ttf").as_slice())
                     .map(Message::FontLoaded),
                 Command::perform(SavedState::load(), Message::Loaded),
@@ -146,27 +146,43 @@ impl Application for Timelord {
     }
 
     fn view(&self) -> Element<Message> {
-        column![button(row![
-            edit_icon(),
-            stopwatch_icon(),
-            clock_icon(),
-            left_arrow_icon(),
-            left_chevron_icon(),
-            right_arrow_icon(),
-            right_chevron_icon(),
-            settings_icon(),
-            resume_icon(),
-            stop_icon(),
-            export_icon(),
-            delete_icon(),
-            calandar_icon(),
-            "TEST"
-        ]),]
-        .padding(20)
-        .align_items(Alignment::Center)
-        .into()
+        match self {
+            Timelord::Loading => loading_message(),
+            Timelord::Loaded(State { input_value, .. }) => column![
+                row![
+                    button(left_chevron_icon()),
+                    text("Week 40 ending 06 Oct 2023")
+                        .width(Length::Fill)
+                        .horizontal_alignment(alignment::Horizontal::Center),
+                    button(right_arrow_icon()),
+                ]
+                .height(50)
+                .padding(10),
+                text_input("group:task", input_value)
+                    .id(INPUT_ID.clone())
+                    .on_input(Message::InputChanged)
+                    .on_submit(Message::CreateTask),
+            ]
+            .padding(20)
+            .width(Length::Fill)
+            .align_items(Alignment::Center)
+            .into(),
+        }
     }
 }
+
+fn loading_message<'a>() -> Element<'a, Message> {
+    container(
+        text("Loading...")
+            .horizontal_alignment(alignment::Horizontal::Center)
+            .size(50),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .center_y()
+    .into()
+}
+
 const ICONS: Font = Font::with_name("typicons");
 
 fn icon(unicode: char) -> Text<'static> {
