@@ -1,3 +1,5 @@
+use std::hint::unreachable_unchecked;
+
 use iced::alignment::{self, Alignment};
 use iced::font::{self, Font};
 use iced::keyboard;
@@ -18,7 +20,13 @@ use uuid::Uuid;
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 
 fn main() -> iced::Result {
-    Timelord::run(Settings::default())
+    Timelord::run(Settings {
+        window: window::Settings {
+            size: (500, 400),
+            ..window::Settings::default()
+        },
+        ..Settings::default()
+    })
 }
 
 #[derive(Debug)]
@@ -27,76 +35,57 @@ enum Timelord {
     Loaded(State),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct State {
     input_value: String,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SavedState {
+    input_value: String,
+}
+
+impl SavedState {
+    fn path() -> std::path::PathBuf {
+        let mut path = if let Some(project_dirs) =
+            directories_next::ProjectDirs::from("xyz", "dobrich", "Timelord")
+        {
+            project_dirs.data_dir().into()
+        } else {
+            std::env::current_dir().unwrap_or_default()
+        };
+
+        path.push("timelord_db.json");
+        path
+    }
+
+    async fn load() -> Result<SavedState, LoadError> {
+        use async_std::prelude::*;
+
+        let mut contents = String::new();
+        let mut file = async_std::fs::File::open(Self::path())
+            .await
+            .map_err(|_| LoadError::File)?;
+
+        file.read_to_string(&mut contents)
+            .await
+            .map_err(|_| LoadError::File)?;
+
+        serde_json::from_str(&contents).map_err(|_| LoadError::Format)
+    }
+}
+
+#[derive(Debug, Clone)]
+enum LoadError {
+    File,
+    Format,
+}
+
+#[derive(Debug, Clone)]
 enum Message {
-    InputChanged,
+    Loaded(Result<SavedState, LoadError>),
     FontLoaded(Result<(), font::Error>),
-}
-
-const ICONS: Font = Font::with_name("Timelord-Icons");
-
-fn icon(unicode: char) -> Text<'static> {
-    text(unicode.to_string())
-        .font(ICONS)
-        .width(20)
-        .horizontal_alignment(alignment::Horizontal::Center)
-}
-
-fn edit_icon() -> Text<'static> {
-    icon('\u{e800}')
-}
-
-fn stopwatch_icon() -> Text<'static> {
-    icon('\u{e801}')
-}
-
-fn clock_icon() -> Text<'static> {
-    icon('\u{e808}')
-}
-
-fn left_arrow_icon() -> Text<'static> {
-    icon('\u{e809}')
-}
-
-fn right_arrow_icon() -> Text<'static> {
-    icon('\u{e80a}')
-}
-
-fn settings_icon() -> Text<'static> {
-    icon('\u{e80b}')
-}
-
-fn right_chevron_icon() -> Text<'static> {
-    icon('\u{f006}')
-}
-
-fn left_chevron_icon() -> Text<'static> {
-    icon('\u{f007}')
-}
-
-fn resume_icon() -> Text<'static> {
-    icon('\u{f00f}')
-}
-
-fn stop_icon() -> Text<'static> {
-    icon('\u{F080}')
-}
-
-fn export_icon() -> Text<'static> {
-    icon('\u{f081}')
-}
-
-fn delete_icon() -> Text<'static> {
-    icon('\u{f083}')
-}
-
-fn calandar_icon() -> Text<'static> {
-    icon('\u{f4c5}')
+    InputChanged(String),
 }
 
 impl Application for Timelord {
@@ -109,7 +98,7 @@ impl Application for Timelord {
         (
             Timelord::Loading,
             Command::batch(vec![
-                font::load(include_bytes!("../fonts/timelord-icons.ttf").as_slice())
+                font::load(include_bytes!("../fonts/typicons.ttf").as_slice())
                     .map(Message::FontLoaded),
                 Command::perform(SavedState::load(), Message::Loaded),
             ]),
@@ -120,19 +109,123 @@ impl Application for Timelord {
         String::from("Timelord - Time Tracker")
     }
 
-    fn update(&mut self, message: Message) {
-        match message {
-            Message::InputChanged => todo!(),
-            Message::FontLoaded(_) => todo!(),
+    fn update(&mut self, message: Message) -> Command<Message> {
+        match self {
+            Timelord::Loading => {
+                match message {
+                    Message::Loaded(Ok(state)) => {
+                        *self = Timelord::Loaded(State {
+                            input_value: state.input_value,
+                            ..State::default()
+                        });
+                    }
+                    Message::Loaded(Err(_)) => {
+                        *self = Timelord::Loaded(State::default());
+                    }
+                    _ => {}
+                }
+
+                text_input::focus(INPUT_ID.clone())
+            }
+            Timelord::Loaded(state) => {
+                // TODO: update title
+                let mut _saved = false;
+
+                let command = match message {
+                    Message::InputChanged(value) => {
+                        state.input_value = value;
+
+                        Command::none()
+                    }
+                    _ => Command::none(),
+                };
+
+                Command::batch(vec![command])
+            }
         }
     }
 
     fn view(&self) -> Element<Message> {
-        column![button(row![stop_icon(), "TEST"]).on_press(Message::InputChanged),]
-            .padding(20)
-            .align_items(Alignment::Center)
-            .into()
+        column![button(row![
+            edit_icon(),
+            stopwatch_icon(),
+            clock_icon(),
+            left_arrow_icon(),
+            left_chevron_icon(),
+            right_arrow_icon(),
+            right_chevron_icon(),
+            settings_icon(),
+            resume_icon(),
+            stop_icon(),
+            export_icon(),
+            delete_icon(),
+            calandar_icon(),
+            "TEST"
+        ]),]
+        .padding(20)
+        .align_items(Alignment::Center)
+        .into()
     }
+}
+const ICONS: Font = Font::with_name("typicons");
+
+fn icon(unicode: char) -> Text<'static> {
+    text(unicode.to_string())
+        .font(ICONS)
+        .width(20)
+        .horizontal_alignment(alignment::Horizontal::Center)
+}
+
+fn edit_icon() -> Text<'static> {
+    icon('\u{E0C3}')
+}
+
+fn stopwatch_icon() -> Text<'static> {
+    icon('\u{E10C}')
+}
+
+fn clock_icon() -> Text<'static> {
+    icon('\u{E120}')
+}
+
+fn left_arrow_icon() -> Text<'static> {
+    icon('\u{E00D}')
+}
+
+fn right_arrow_icon() -> Text<'static> {
+    icon('\u{E01A}')
+}
+
+fn settings_icon() -> Text<'static> {
+    icon('\u{E050}')
+}
+
+fn right_chevron_icon() -> Text<'static> {
+    icon('\u{E049}')
+}
+
+fn left_chevron_icon() -> Text<'static> {
+    icon('\u{E047}')
+}
+
+fn resume_icon() -> Text<'static> {
+    icon('\u{E0B0}')
+}
+
+fn stop_icon() -> Text<'static> {
+    icon('\u{E0B6}')
+}
+
+fn export_icon() -> Text<'static> {
+    icon('\u{E06D}')
+}
+
+fn delete_icon() -> Text<'static> {
+    icon('\u{E123}')
+}
+
+fn calandar_icon() -> Text<'static> {
+    icon('\u{E039}')
 }
 // use std::collections::HashMap;
 
