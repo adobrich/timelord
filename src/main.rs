@@ -33,9 +33,38 @@ enum Timelord {
     Loaded(State),
 }
 
+#[derive(Debug)]
+struct Task {
+    name: String,
+    group: Option<String>,
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+}
+
+impl Task {
+    fn new(name: String) -> Task {
+        let current_timestamp = Local::now().naive_local();
+        match name.split_once(':') {
+            Some((group, name)) => Task {
+                name: name.trim().to_string(),
+                group: Some(group.trim().to_string()),
+                start: current_timestamp,
+                end: current_timestamp,
+            },
+            None => Task {
+                name,
+                group: None,
+                start: current_timestamp,
+                end: current_timestamp,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 struct State {
     input_value: String,
+    tasks: Vec<Task>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,6 +166,16 @@ impl Application for Timelord {
 
                         Command::none()
                     }
+
+                    Message::CreateTask => {
+                        if !state.input_value.is_empty() {
+                            state.tasks.push(Task::new(state.input_value.clone()));
+                            state.input_value.clear();
+                        }
+                        dbg!(state);
+                        Command::none()
+                    }
+
                     _ => Command::none(),
                 };
 
