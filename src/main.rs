@@ -150,8 +150,8 @@ impl Application for Timelord {
             Timelord::Loading => loading_message(),
             Timelord::Loaded(State { input_value, .. }) => column![
                 row![
-                    button(left_chevron_icon()),
-                    text("Week 40 ending 06 Oct 2023")
+                    button(left_arrow_icon()),
+                    text(Local::now().naive_local().format("Week %-V"))
                         .width(Length::Fill)
                         .horizontal_alignment(alignment::Horizontal::Center),
                     button(right_arrow_icon()),
