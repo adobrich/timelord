@@ -15,6 +15,8 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+mod icons;
+
 static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 
 fn main() -> iced::Result {
@@ -187,25 +189,35 @@ impl Application for Timelord {
     fn view(&self) -> Element<Message> {
         match self {
             Timelord::Loading => loading_message(),
-            Timelord::Loaded(State { input_value, .. }) => column![
-                row![
-                    button(left_arrow_icon()),
-                    text(Local::now().naive_local().format("Week %-V"))
-                        .width(Length::Fill)
-                        .horizontal_alignment(alignment::Horizontal::Center),
-                    button(right_arrow_icon()),
-                ]
-                .height(50)
-                .padding(10),
-                text_input("group:task", input_value)
+            Timelord::Loaded(State { input_value, .. }) => {
+                let header = row![icons::calendar(), text(Local::now().naive_local().format("Week %-V"))];
+
+                let input = text_input("group:task", input_value)
                     .id(INPUT_ID.clone())
                     .on_input(Message::InputChanged)
-                    .on_submit(Message::CreateTask),
-            ]
-            .padding(20)
-            .width(Length::Fill)
-            .align_items(Alignment::Center)
-            .into(),
+                    .on_submit(Message::CreateTask);
+
+                column![header, input].into()
+            }
+            // column![
+            //     row![
+            //         button(icons::left_arrow()),
+            //         text(Local::now().naive_local().format("Week %-V"))
+            //             .width(Length::Fill)
+            //             .horizontal_alignment(alignment::Horizontal::Center),
+            //         button(icons::right_arrow()),
+            //     ]
+            //     .height(50)
+            //     .padding(10),
+            //     text_input("group:task", input_value)
+            //         .id(INPUT_ID.clone())
+            //         .on_input(Message::InputChanged)
+            //         .on_submit(Message::CreateTask),
+            // ]
+            // .padding(20)
+            // .width(Length::Fill)
+            // .align_items(Alignment::Center)
+            // .into(),
         }
     }
 }
@@ -222,66 +234,6 @@ fn loading_message<'a>() -> Element<'a, Message> {
     .into()
 }
 
-const ICONS: Font = Font::with_name("typicons");
-
-fn icon(unicode: char) -> Text<'static> {
-    text(unicode.to_string())
-        .font(ICONS)
-        .width(20)
-        .horizontal_alignment(alignment::Horizontal::Center)
-}
-
-fn edit_icon() -> Text<'static> {
-    icon('\u{E0C3}')
-}
-
-fn stopwatch_icon() -> Text<'static> {
-    icon('\u{E10C}')
-}
-
-fn clock_icon() -> Text<'static> {
-    icon('\u{E120}')
-}
-
-fn left_arrow_icon() -> Text<'static> {
-    icon('\u{E00D}')
-}
-
-fn right_arrow_icon() -> Text<'static> {
-    icon('\u{E01A}')
-}
-
-fn settings_icon() -> Text<'static> {
-    icon('\u{E050}')
-}
-
-fn right_chevron_icon() -> Text<'static> {
-    icon('\u{E049}')
-}
-
-fn left_chevron_icon() -> Text<'static> {
-    icon('\u{E047}')
-}
-
-fn resume_icon() -> Text<'static> {
-    icon('\u{E0B0}')
-}
-
-fn stop_icon() -> Text<'static> {
-    icon('\u{E0B6}')
-}
-
-fn export_icon() -> Text<'static> {
-    icon('\u{E06D}')
-}
-
-fn delete_icon() -> Text<'static> {
-    icon('\u{E123}')
-}
-
-fn calandar_icon() -> Text<'static> {
-    icon('\u{E039}')
-}
 // use std::collections::HashMap;
 
 // use chrono::{Duration, Local, NaiveDateTime};
