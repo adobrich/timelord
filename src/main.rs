@@ -94,7 +94,7 @@ pub enum Filter {
 impl SavedState {
     fn path() -> std::path::PathBuf {
         let mut path = if let Some(project_dirs) =
-            directories_next::ProjectDirs::from("xyz", "dobrich", "Timelord")
+            directories_next::ProjectDirs::from("xyz", "dobrich", "timelord")
         {
             project_dirs.data_dir().into()
         } else {
@@ -214,7 +214,6 @@ impl Application for Timelord {
                 text_input::focus(INPUT_ID.clone())
             }
             Timelord::Loaded(state) => {
-                // TODO: update title
                 let mut saved = false;
 
                 let command = match message {
@@ -269,7 +268,7 @@ impl Application for Timelord {
                     Command::none()
                 };
 
-                Command::batch(vec![command])
+                Command::batch(vec![command, save])
             }
         }
     }
@@ -278,7 +277,7 @@ impl Application for Timelord {
         match self {
             Timelord::Loading => loading_message(),
             Timelord::Loaded(State { input_value, .. }) => {
-                let header = row![icons::calendar(), text(Local::now().naive_local().format(" Week %-V"))].padding(5);
+                let header = row![icons::calendar(), text(Local::now().naive_local().format(" %A %d %b %Y"))].padding(5);
 
                 let input = text_input("group:task", input_value)
                     .id(INPUT_ID.clone())
