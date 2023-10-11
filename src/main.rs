@@ -277,7 +277,11 @@ impl Application for Timelord {
         match self {
             Timelord::Loading => loading_message(),
             Timelord::Loaded(State { input_value, .. }) => {
-                let header = row![icons::calendar(), text(Local::now().naive_local().format(" %A %d %b %Y"))].padding(5);
+                let header = row![
+                    icons::calendar(),
+                    text(Local::now().naive_local().format(" %A %d %b %Y"))
+                ]
+                .padding(5);
 
                 let input = text_input("group:task", input_value)
                     .id(INPUT_ID.clone())
@@ -285,27 +289,11 @@ impl Application for Timelord {
                     .on_submit(Message::CreateTask)
                     .padding(5);
 
-                column![header, input].align_items(Alignment::Center).padding(10).into()
+                column![header, input]
+                    .align_items(Alignment::Center)
+                    .padding(10)
+                    .into()
             }
-            // column![
-            //     row![
-            //         button(icons::left_arrow()),
-            //         text(Local::now().naive_local().format("Week %-V"))
-            //             .width(Length::Fill)
-            //             .horizontal_alignment(alignment::Horizontal::Center),
-            //         button(icons::right_arrow()),
-            //     ]
-            //     .height(50)
-            //     .padding(10),
-            //     text_input("group:task", input_value)
-            //         .id(INPUT_ID.clone())
-            //         .on_input(Message::InputChanged)
-            //         .on_submit(Message::CreateTask),
-            // ]
-            // .padding(20)
-            // .width(Length::Fill)
-            // .align_items(Alignment::Center)
-            // .into(),
         }
     }
 }
