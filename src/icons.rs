@@ -7,6 +7,7 @@ const ICONS: Font = Font::with_name("typicons");
 fn icon(unicode: char) -> Text<'static> {
     text(unicode.to_string())
         .font(ICONS)
+        .size(18)
         .width(20)
         .horizontal_alignment(alignment::Horizontal::Center)
 }
@@ -60,5 +61,5 @@ pub fn delete() -> Text<'static> {
 }
 
 pub fn calendar() -> Text<'static> {
-    icon('\u{E039}')
+    icon('\u{E038}')
 }

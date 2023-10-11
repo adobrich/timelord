@@ -35,7 +35,7 @@ enum Timelord {
     Loaded(State),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Task {
     name: String,
     group: Option<String>,
@@ -49,7 +49,11 @@ impl Task {
         match name.split_once(':') {
             Some((group, name)) => Task {
                 name: name.trim().to_string(),
-                group: Some(group.trim().to_string()),
+                group: if group.len() > 0 {
+                    Some(group.trim().to_string())
+                } else {
+                    None
+                },
                 start: current_timestamp,
                 end: current_timestamp,
             },
@@ -67,11 +71,24 @@ impl Task {
 struct State {
     input_value: String,
     tasks: Vec<Task>,
+    filter: Filter,
+    dirty: bool,
+    saving: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SavedState {
     input_value: String,
+    filter: Filter,
+    tasks: Vec<Task>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum Filter {
+    #[default]
+    Today,
+    PreviousWeek,
+    NextWeek,
 }
 
 impl SavedState {
@@ -102,6 +119,30 @@ impl SavedState {
 
         serde_json::from_str(&contents).map_err(|_| LoadError::Format)
     }
+
+    async fn save(self) -> Result<(), SaveError> {
+        use async_std::prelude::*;
+
+        let json = serde_json::to_string_pretty(&self).map_err(|_| SaveError::Format)?;
+
+        let path = Self::path();
+        if let Some(dir) = path.parent() {
+            async_std::fs::create_dir_all(dir)
+                .await
+                .map_err(|_| SaveError::File)?;
+        }
+        {
+            let mut file = async_std::fs::File::create(path)
+                .await
+                .map_err(|_| SaveError::File)?;
+            file.write_all(json.as_bytes())
+                .await
+                .map_err(|_| SaveError::Write)?;
+        }
+        async_std::task::sleep(std::time::Duration::from_secs(2)).await;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -111,11 +152,20 @@ enum LoadError {
 }
 
 #[derive(Debug, Clone)]
+enum SaveError {
+    File,
+    Write,
+    Format,
+}
+
+#[derive(Debug, Clone)]
 enum Message {
     Loaded(Result<SavedState, LoadError>),
+    Saved(Result<(), SaveError>),
     FontLoaded(Result<(), font::Error>),
     InputChanged(String),
     CreateTask,
+    FilterChanged(Filter),
 }
 
 impl Application for Timelord {
@@ -137,7 +187,11 @@ impl Application for Timelord {
     }
 
     fn title(&self) -> String {
-        String::from("Timelord - Time Tracker")
+        let dirty = match self {
+            Timelord::Loading => false,
+            Timelord::Loaded(state) => state.dirty,
+        };
+        format!("Timelord{} - Time Tracker", if dirty { "*" } else { "" })
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -147,6 +201,7 @@ impl Application for Timelord {
                     Message::Loaded(Ok(state)) => {
                         *self = Timelord::Loaded(State {
                             input_value: state.input_value,
+                            filter: state.filter,
                             ..State::default()
                         });
                     }
@@ -160,7 +215,7 @@ impl Application for Timelord {
             }
             Timelord::Loaded(state) => {
                 // TODO: update title
-                let mut _saved = false;
+                let mut saved = false;
 
                 let command = match message {
                     Message::InputChanged(value) => {
@@ -174,11 +229,44 @@ impl Application for Timelord {
                             state.tasks.push(Task::new(state.input_value.clone()));
                             state.input_value.clear();
                         }
-                        dbg!(state);
+                        Command::none()
+                    }
+
+                    Message::FilterChanged(filter) => {
+                        state.filter = filter;
+
+                        Command::none()
+                    }
+
+                    Message::Saved(_) => {
+                        state.saving = false;
+                        saved = true;
+
                         Command::none()
                     }
 
                     _ => Command::none(),
+                };
+
+                if !saved {
+                    state.dirty = true;
+                }
+
+                let save = if state.dirty && !state.saving {
+                    state.dirty = false;
+                    state.saving = true;
+
+                    Command::perform(
+                        SavedState {
+                            input_value: state.input_value.clone(),
+                            filter: state.filter,
+                            tasks: state.tasks.clone(),
+                        }
+                        .save(),
+                        Message::Saved,
+                    )
+                } else {
+                    Command::none()
                 };
 
                 Command::batch(vec![command])
@@ -190,14 +278,15 @@ impl Application for Timelord {
         match self {
             Timelord::Loading => loading_message(),
             Timelord::Loaded(State { input_value, .. }) => {
-                let header = row![icons::calendar(), text(Local::now().naive_local().format("Week %-V"))];
+                let header = row![icons::calendar(), text(Local::now().naive_local().format(" Week %-V"))].padding(5);
 
                 let input = text_input("group:task", input_value)
                     .id(INPUT_ID.clone())
                     .on_input(Message::InputChanged)
-                    .on_submit(Message::CreateTask);
+                    .on_submit(Message::CreateTask)
+                    .padding(5);
 
-                column![header, input].into()
+                column![header, input].align_items(Alignment::Center).padding(10).into()
             }
             // column![
             //     row![
